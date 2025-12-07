@@ -178,6 +178,7 @@ app.post('/api/agents/create', async (req, res) => {
 });
 
 // Update existing agent - FIXED VERSION
+// Update existing agent - IMPROVED ERROR HANDLING
 app.patch('/api/agents/:id/update', async (req, res) => {
   try {
     const { id } = req.params;
@@ -186,29 +187,17 @@ app.patch('/api/agents/:id/update', async (req, res) => {
     console.log('📥 Update request for agent:', id);
     console.log('📥 Update data received:', JSON.stringify(updateData, null, 2));
 
-    // Handle general_prompt updates by updating the LLM
-    if (updateData.general_prompt) {
-      // First, get the current agent to find its LLM ID
-      const currentAgent = await retellClient.agent.retrieve(id);
-      
-      if (currentAgent.response_engine?.llm_id) {
-        console.log('📝 Updating LLM with new prompt...');
-        
-        // Update the LLM with the new prompt
-        await retellClient.llm.update(currentAgent.response_engine.llm_id, {
-          general_prompt: updateData.general_prompt
-        });
-        
-        console.log('✅ LLM updated successfully');
-      }
-      
-      // Remove general_prompt from updateData as it's not a direct agent property
-      delete updateData.general_prompt;
-    }
+    // Remove fields that might cause issues
+    const cleanUpdateData = { ...updateData };
+    delete cleanUpdateData.general_prompt; // Can't update this directly
+    delete cleanUpdateData.llm_id; // Can't update this
+    delete cleanUpdateData.agent_id; // Can't update this
 
-    // Only proceed if there are other fields to update
-    if (Object.keys(updateData).length > 0) {
-      const updatedAgent = await retellClient.agent.update(id, updateData);
+    console.log('📤 Clean update data:', JSON.stringify(cleanUpdateData, null, 2));
+
+    // Only proceed if there are fields to update
+    if (Object.keys(cleanUpdateData).length > 0) {
+      const updatedAgent = await retellClient.agent.update(id, cleanUpdateData);
       console.log('✅ Agent updated:', id);
       
       res.json({
@@ -217,19 +206,21 @@ app.patch('/api/agents/:id/update', async (req, res) => {
         message: 'Agent updated successfully'
       });
     } else {
-      // If only prompt was updated
+      // If no valid fields to update
       const agent = await retellClient.agent.retrieve(id);
       res.json({
         success: true,
         agent: agent,
-        message: 'Agent updated successfully'
+        message: 'No changes to update'
       });
     }
   } catch (error) {
     console.error('❌ Error updating agent:', error);
+    console.error('❌ Full error:', JSON.stringify(error, null, 2));
+    
     res.status(500).json({ 
       success: false,
-      error: error.error?.error_message || error.message 
+      error: error.error?.error_message || error.message || 'Unknown error'
     });
   }
 });

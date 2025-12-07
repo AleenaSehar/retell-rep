@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { RetellWebClient } from 'retell-client-js-sdk';
+import { Phone, Users, LayoutGrid, LogOut } from 'lucide-react';
 import AgentManagement from './AgentManagement';
 import PhoneNumberManagement from './PhoneNumberManagement';
 import './App.css';
@@ -7,14 +8,14 @@ import './App.css';
 function App() {
   // Navigation state
   const [currentTab, setCurrentTab] = useState('call'); // 'call', 'manage', or 'numbers'
-  
+
   const [isCallActive, setIsCallActive] = useState(false);
   const [callStatus, setCallStatus] = useState('Ready to call');
   const [callHistory, setCallHistory] = useState([]);
   const [retellClient, setRetellClient] = useState(null);
   const [selectedCall, setSelectedCall] = useState(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
-  
+
   const [availableAgents, setAvailableAgents] = useState([]);
   const [selectedAgent, setSelectedAgent] = useState(null);
   const [loadingAgents, setLoadingAgents] = useState(true);
@@ -28,7 +29,7 @@ function App() {
     try {
       const response = await fetch('http://localhost:3001/api/agents/list');
       const data = await response.json();
-      
+
       if (data.success) {
         setAvailableAgents(data.agents);
         setSelectedAgent(data.agents[0]);
@@ -135,13 +136,13 @@ function App() {
   const fetchCallDetails = async (callId) => {
     setLoadingDetails(true);
     setSelectedCall(null);
-    
+
     try {
       await new Promise(resolve => setTimeout(resolve, 2000));
-      
+
       const response = await fetch(`http://localhost:3001/get-call/${callId}`);
       const data = await response.json();
-      
+
       setSelectedCall(data);
     } catch (error) {
       console.error('Error fetching call details:', error);
@@ -158,10 +159,10 @@ function App() {
     }
 
     const headers = 'Call ID,Timestamp,Agent,Status\n';
-    const rows = callHistory.map(call => 
+    const rows = callHistory.map(call =>
       `${call.id},${call.timestamp},${call.agentName},${call.status}`
     ).join('\n');
-    
+
     const csvContent = headers + rows;
 
     const blob = new Blob([csvContent], { type: 'text/csv' });
@@ -195,214 +196,235 @@ function App() {
 
   return (
     <div className="app-container">
-      <header className="header">
-        <div className="header-content">
-          <div className="header-left">
-            <h1>AI Voice Agent Platform</h1>
-            <p>Powered by Retell AI Technology</p>
-          </div>
+      {/* Sidebar Navigation */}
+      <aside className="sidebar">
+        <div className="sidebar-header">
+          <div className="logo-icon">AI</div>
+          <span className="logo-text">Retell Agent</span>
         </div>
-      </header>
 
-      {/* Professional Navigation Tabs */}
-      <div className="navigation-tabs">
-        <div className="nav-container">
-          <button 
-            className={`tab-btn ${currentTab === 'call' ? 'active' : ''}`}
+        <nav className="sidebar-nav">
+          <button
+            className={`nav-item ${currentTab === 'call' ? 'active' : ''}`}
             onClick={() => setCurrentTab('call')}
           >
-            📞 Make Calls
+            <Phone size={20} />
+            <span>Make Calls</span>
           </button>
-          <button 
-            className={`tab-btn ${currentTab === 'manage' ? 'active' : ''}`}
+
+          <button
+            className={`nav-item ${currentTab === 'manage' ? 'active' : ''}`}
             onClick={() => {
               setCurrentTab('manage');
               fetchAgents();
             }}
           >
-            🤖 Manage Agents
+            <Users size={20} />
+            <span>Agents</span>
           </button>
-          <button 
-            className={`tab-btn ${currentTab === 'numbers' ? 'active' : ''}`}
+
+          <button
+            className={`nav-item ${currentTab === 'numbers' ? 'active' : ''}`}
             onClick={() => setCurrentTab('numbers')}
           >
-            ☎️ Phone Numbers
+            <LayoutGrid size={20} />
+            <span>Phone Numbers</span>
+          </button>
+        </nav>
+
+        <div className="sidebar-footer">
+          <button className="nav-item logout">
+            <LogOut size={20} />
+            <span>Logout</span>
           </button>
         </div>
-      </div>
+      </aside>
 
-      {/* Content based on selected tab */}
-      {currentTab === 'call' ? (
-        <main className="main-content">
-          {/* Agent Selection Section */}
-          <div className="agent-section">
-            <h2>Select Your Agent</h2>
-            <div className="agent-selector">
-              {availableAgents.map((agent) => (
-                <div
-                  key={agent.agent_id}
-                  className={`agent-card ${selectedAgent?.agent_id === agent.agent_id ? 'selected' : ''}`}
-                  onClick={() => setSelectedAgent(agent)}
+      {/* Main Content Area */}
+      <main className="main-content">
+        {/* Header for mobile or title */}
+        <header className="content-header">
+          <h1>
+            {currentTab === 'call' && 'Make Calls'}
+            {currentTab === 'manage' && 'Agent Management'}
+            {currentTab === 'numbers' && 'Phone Numbers'}
+          </h1>
+        </header>
+
+        <div className="content-body">
+          {currentTab === 'call' ? (
+            <div className="call-dashboard">
+              {/* Agent Selection Section */}
+              <div className="agent-section">
+                <h2>Select Your Agent</h2>
+                <div className="agent-selector">
+                  {availableAgents.map((agent) => (
+                    <div
+                      key={agent.agent_id}
+                      className={`agent-card ${selectedAgent?.agent_id === agent.agent_id ? 'selected' : ''}`}
+                      onClick={() => setSelectedAgent(agent)}
+                    >
+                      <div className="agent-icon">🤖</div>
+                      <h3>{agent.agent_name}</h3>
+                      <p>Voice: {agent.voice_id}</p>
+                      {selectedAgent?.agent_id === agent.agent_id && (
+                        <div className="selected-badge">✓ Selected</div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Call Button */}
+              <div className="call-section">
+                <button
+                  className={`call-button ${isCallActive ? 'active' : ''}`}
+                  onClick={isCallActive ? endCall : startCall}
+                  disabled={!selectedAgent}
                 >
-                  <div className="agent-icon">🤖</div>
-                  <h3>{agent.agent_name}</h3>
-                  <p>Voice: {agent.voice_id}</p>
-                  {selectedAgent?.agent_id === agent.agent_id && (
-                    <div className="selected-badge">✓ Selected</div>
+                  {isCallActive ? '📞 End Call' : `🎤 Start Call with ${selectedAgent?.agent_name || 'Agent'}`}
+                </button>
+                <p className="status">{callStatus}</p>
+              </div>
+
+              {/* Call History Section */}
+              <div className="history-section">
+                <h2>Call History ({callHistory.length})</h2>
+                <div className="history-list">
+                  {callHistory.length === 0 ? (
+                    <p>No calls yet</p>
+                  ) : (
+                    callHistory.map((call, index) => (
+                      <div key={index} className="call-item">
+                        <div className="call-item-left">
+                          <span className="agent-badge">{call.agentIcon} {call.agentName}</span>
+                          <span className="call-time">{call.timestamp}</span>
+                          <span className="call-id">ID: {call.id.substring(0, 12)}...</span>
+                        </div>
+                        <div className="call-item-right">
+                          <span className={`call-status ${call.status.toLowerCase()}`}>
+                            {call.status}
+                          </span>
+                          {call.status === 'Completed' && (
+                            <button
+                              className="view-details-btn"
+                              onClick={() => fetchCallDetails(call.id)}
+                            >
+                              📄 View Details
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))
                   )}
                 </div>
-              ))}
+                <button
+                  className="export-button"
+                  onClick={exportToCSV}
+                  disabled={callHistory.length === 0}
+                >
+                  📥 Export to CSV
+                </button>
+              </div>
             </div>
-          </div>
+          ) : currentTab === 'manage' ? (
+            <AgentManagement />
+          ) : (
+            <PhoneNumberManagement />
+          )}
+        </div>
 
-          {/* Call Button */}
-          <div className="call-section">
-            <button 
-              className={`call-button ${isCallActive ? 'active' : ''}`}
-              onClick={isCallActive ? endCall : startCall}
-              disabled={!selectedAgent}
-            >
-              {isCallActive ? '📞 End Call' : `🎤 Start Call with ${selectedAgent?.agent_name || 'Agent'}`}
-            </button>
-            <p className="status">{callStatus}</p>
-          </div>
+        {/* Call Details Modal */}
+        {(selectedCall || loadingDetails) && (
+          <div className="modal-overlay" onClick={() => setSelectedCall(null)}>
+            <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+              <div className="modal-header">
+                <h2>📊 Call Details</h2>
+                <button className="close-btn" onClick={() => setSelectedCall(null)}>✕</button>
+              </div>
 
-          {/* Call History Section */}
-          <div className="history-section">
-            <h2>Call History ({callHistory.length})</h2>
-            <div className="history-list">
-              {callHistory.length === 0 ? (
-                <p>No calls yet</p>
+              {loadingDetails ? (
+                <div className="loading">
+                  <div className="spinner"></div>
+                  <p>Loading call details...</p>
+                </div>
               ) : (
-                callHistory.map((call, index) => (
-                  <div key={index} className="call-item">
-                    <div className="call-item-left">
-                      <span className="agent-badge">{call.agentIcon} {call.agentName}</span>
-                      <span className="call-time">{call.timestamp}</span>
-                      <span className="call-id">ID: {call.id.substring(0, 12)}...</span>
+                <>
+                  <div className="call-meta">
+                    <div className="meta-item">
+                      <span className="meta-label">AGENT</span>
+                      <span className="meta-value">{selectedAgent?.agent_name}</span>
                     </div>
-                    <div className="call-item-right">
-                      <span className={`call-status ${call.status.toLowerCase()}`}>
-                        {call.status}
-                      </span>
-                      {call.status === 'Completed' && (
-                        <button 
-                          className="view-details-btn"
-                          onClick={() => fetchCallDetails(call.id)}
-                        >
-                          📄 View Details
-                        </button>
+                    <div className="meta-item">
+                      <span className="meta-label">CALL ID</span>
+                      <span className="meta-value">{selectedCall.call_id}</span>
+                    </div>
+                    <div className="meta-item">
+                      <span className="meta-label">DURATION</span>
+                      <span className="meta-value">{formatDuration(selectedCall.duration)}</span>
+                    </div>
+                    <div className="meta-item">
+                      <span className="meta-label">STATUS</span>
+                      <span className="meta-value status-badge">{selectedCall.call_status}</span>
+                    </div>
+                  </div>
+
+                  <div className="transcript-section">
+                    <h3>💬 Conversation Transcript</h3>
+                    <div className="transcript-content">
+                      {selectedCall.transcript === 'Transcript not available yet' ? (
+                        <p className="no-transcript">
+                          Transcript is being processed. Please wait a moment and try again.
+                        </p>
+                      ) : (
+                        <div className="transcript-messages">
+                          {typeof selectedCall.transcript === 'string' ? (
+                            selectedCall.transcript.split(/(?=Agent:|User:)/i).filter(line => line.trim()).map((line, idx) => {
+                              const isAgent = line.trim().toLowerCase().startsWith('agent:');
+                              const isUser = line.trim().toLowerCase().startsWith('user:');
+
+                              if (!isAgent && !isUser) return null;
+
+                              const content = line.replace(/^(Agent:|User:)/i, '').trim();
+
+                              return (
+                                <div key={idx} className={`message ${isAgent ? 'agent' : 'user'}`}>
+                                  <span className="message-role">
+                                    {isAgent ? '🤖 Agent:' : '👤 You:'}
+                                  </span>
+                                  <span className="message-text">{content}</span>
+                                </div>
+                              );
+                            })
+                          ) : Array.isArray(selectedCall.transcript) ? (
+                            selectedCall.transcript.map((msg, idx) => (
+                              <div key={idx} className={`message ${msg.role}`}>
+                                <span className="message-role">
+                                  {msg.role === 'agent' ? '🤖 Agent:' : '👤 You:'}
+                                </span>
+                                <span className="message-text">{msg.content}</span>
+                              </div>
+                            ))
+                          ) : null}
+                        </div>
                       )}
                     </div>
                   </div>
-                ))
+
+                  {selectedCall.recording_url && (
+                    <div className="recording-section">
+                      <h3>🎵 Call Recording</h3>
+                      <audio controls src={selectedCall.recording_url} className="audio-player">
+                        Your browser does not support audio playback.
+                      </audio>
+                    </div>
+                  )}
+                </>
               )}
             </div>
-            <button 
-              className="export-button"
-              onClick={exportToCSV}
-              disabled={callHistory.length === 0}
-            >
-              📥 Export to CSV
-            </button>
           </div>
-
-          {/* Call Details Modal */}
-          {(selectedCall || loadingDetails) && (
-            <div className="modal-overlay" onClick={() => setSelectedCall(null)}>
-              <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-                <div className="modal-header">
-                  <h2>📊 Call Details</h2>
-                  <button className="close-btn" onClick={() => setSelectedCall(null)}>✕</button>
-                </div>
-                
-                {loadingDetails ? (
-                  <div className="loading">
-                    <div className="spinner"></div>
-                    <p>Loading call details...</p>
-                  </div>
-                ) : (
-                  <>
-                    <div className="call-meta">
-                      <div className="meta-item">
-                        <span className="meta-label">AGENT</span>
-                        <span className="meta-value">{selectedAgent?.agent_name}</span>
-                      </div>
-                      <div className="meta-item">
-                        <span className="meta-label">CALL ID</span>
-                        <span className="meta-value">{selectedCall.call_id}</span>
-                      </div>
-                      <div className="meta-item">
-                        <span className="meta-label">DURATION</span>
-                        <span className="meta-value">{formatDuration(selectedCall.duration)}</span>
-                      </div>
-                      <div className="meta-item">
-                        <span className="meta-label">STATUS</span>
-                        <span className="meta-value status-badge">{selectedCall.call_status}</span>
-                      </div>
-                    </div>
-
-                    <div className="transcript-section">
-                      <h3>💬 Conversation Transcript</h3>
-                      <div className="transcript-content">
-                        {selectedCall.transcript === 'Transcript not available yet' ? (
-                          <p className="no-transcript">
-                            Transcript is being processed. Please wait a moment and try again.
-                          </p>
-                        ) : (
-                          <div className="transcript-messages">
-                            {typeof selectedCall.transcript === 'string' ? (
-                              selectedCall.transcript.split(/(?=Agent:|User:)/i).filter(line => line.trim()).map((line, idx) => {
-                                const isAgent = line.trim().toLowerCase().startsWith('agent:');
-                                const isUser = line.trim().toLowerCase().startsWith('user:');
-                                
-                                if (!isAgent && !isUser) return null;
-                                
-                                const content = line.replace(/^(Agent:|User:)/i, '').trim();
-                                
-                                return (
-                                  <div key={idx} className={`message ${isAgent ? 'agent' : 'user'}`}>
-                                    <span className="message-role">
-                                      {isAgent ? '🤖 Agent:' : '👤 You:'}
-                                    </span>
-                                    <span className="message-text">{content}</span>
-                                  </div>
-                                );
-                              })
-                            ) : Array.isArray(selectedCall.transcript) ? (
-                              selectedCall.transcript.map((msg, idx) => (
-                                <div key={idx} className={`message ${msg.role}`}>
-                                  <span className="message-role">
-                                    {msg.role === 'agent' ? '🤖 Agent:' : '👤 You:'}
-                                  </span>
-                                  <span className="message-text">{msg.content}</span>
-                                </div>
-                              ))
-                            ) : null}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    {selectedCall.recording_url && (
-                      <div className="recording-section">
-                        <h3>🎵 Call Recording</h3>
-                        <audio controls src={selectedCall.recording_url} className="audio-player">
-                          Your browser does not support audio playback.
-                        </audio>
-                      </div>
-                    )}
-                  </>
-                )}
-              </div>
-            </div>
-          )}
-        </main>
-      ) : currentTab === 'manage' ? (
-        <AgentManagement />
-      ) : (
-        <PhoneNumberManagement />
-      )}
+        )}
+      </main>
     </div>
   );
 }
